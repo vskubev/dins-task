@@ -6,7 +6,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import java.io.IOException;
 import java.net.URI;
 
-public class JuniorDevTask {
+public class JavaDevTask {
     private static final String BASE_URI = "http://localhost:8081";
 
     private static HttpServer startServer() {
