@@ -1,28 +1,49 @@
 package com.ringcentral.testtask.controllers;
 
+import com.ringcentral.testtask.exceptions.CustomException;
 import com.ringcentral.testtask.external.Car;
 import com.ringcentral.testtask.external.CarInfo;
 import com.ringcentral.testtask.external.Country;
+import com.ringcentral.testtask.mapper.Mapper;
 import com.ringcentral.testtask.resources.CarInfoResource;
 import com.ringcentral.testtask.resources.CarResource;
 import com.ringcentral.testtask.resources.CarsResource;
 import com.ringcentral.testtask.resources.CountriesResource;
-import com.ringcentral.testtask.resources.CountryResource;
+import com.ringcentral.testtask.services.CarInfoService;
+import com.ringcentral.testtask.services.CarService;
 import com.ringcentral.testtask.services.external.CarsAPIService;
+import com.ringcentral.testtask.validators.Validator;
+import org.glassfish.hk2.api.Immediate;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.inject.Inject;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Path("api")
+@Immediate
 public class CarsController {
+
+    private final CarService carService;
+    private final CarInfoService carInfoService;
+    private final Mapper mapper;
+    private final Validator validator;
+
+    @Inject
+    public CarsController(CarService carService,
+                          CarInfoService carInfoService,
+                          Mapper mapper,
+                          Validator validator) {
+        this.carService = carService;
+        this.carInfoService = carInfoService;
+        this.mapper = mapper;
+        this.validator = validator;
+    }
 
     // echo of source api
     @Path("echo/cars")
@@ -32,7 +53,7 @@ public class CarsController {
         CarsAPIService carsAPI = new CarsAPIService();
         List<Car> carsList = carsAPI.getCars();
         CarsResource result = new CarsResource();
-        carsList.forEach(car -> result.getCarResources().add(from(car)));
+        carsList.forEach(car -> result.getCarResources().add(mapper.from(car)));
 
         return result;
     }
@@ -45,7 +66,7 @@ public class CarsController {
         CarsAPIService carsAPI = new CarsAPIService();
         CarInfo carInfo = carsAPI.getCarById(carId);
 
-        return from(carInfo);
+        return mapper.from(carInfo);
     }
 
     // echo of source api with small extra example
@@ -61,105 +82,90 @@ public class CarsController {
                 .orElseGet(Collections::emptyList)
                 .stream()
                 .filter(title == null ? country -> true : country -> title.equals(country.getTitle()))
-                .map(CarsController::from)
+                .map(mapper::from)
                 .collect(Collectors.toList()));
 
         return result;
     }
 
     @Path("cars")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getCars() {
-        return "TODO";
+    public Response getCars(@QueryParam("brand") String brand,
+                            @QueryParam("segment") String segment,
+                            @QueryParam("minEngineDisplacement") String minEngineDisplacement,
+                            @QueryParam("minEngineHorsepower") String minEngineHorsepower,
+                            @QueryParam("minMaxSpeed") String minMaxSpeed,
+                            @QueryParam("search") String search,
+                            @QueryParam("isFull") @DefaultValue("false") Boolean isFull,
+                            @QueryParam("year") String year,
+                            @QueryParam("bodyStyle") String bodyStyle) {
+        try {
+            validator.checkForIncorrectInputValues(minEngineDisplacement, minEngineHorsepower, minMaxSpeed, year);
+            final List<CarResource> carResourceList = carInfoService.findCarResourcesByParams(brand, segment, minEngineDisplacement, minEngineHorsepower, minMaxSpeed, search, year, bodyStyle);
+            if (carResourceList.isEmpty()) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            return isFull ? Response.status(Response.Status.OK).entity(carInfoService.getCarInfoListByCarResourceList(carResourceList)).build() :
+                    Response.status(Response.Status.OK).entity(new CarsResource(carResourceList)).build();
+        } catch (CustomException e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
     }
 
     @Path("fuel-types")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getFuelTypes() {
-        return "TODO";
+    public List<String> getFuelTypes() {
+        return carInfoService.getFuelTypes();
     }
 
     @Path("body-styles")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getBodyStyles() {
-        return "TODO";
+    public List<String> getBodyStyles() {
+        return carInfoService.getBodyStyles();
     }
 
     @Path("engine-types")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getEngineTypes() {
-        return "TODO";
+    public List<String> getEngineTypes() {
+        return carInfoService.getEngineTypes();
     }
 
     @Path("wheel-drives")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getWheelDrives() {
-        return "TODO";
+    public List<String> getWheelDrives() {
+        return carInfoService.getWheelDrives();
     }
 
     @Path("gearboxes")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getGearboxes() {
-        return "TODO";
+    public List<String> getGearboxes() {
+        return carInfoService.getGearboxes();
     }
 
     @Path("max-speed")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     @GET
-    public String getMaxSpeed() {
-        return "TODO";
-    }
-
-    private static CarResource from(Car car) {
-        CarResource carResource = new CarResource();
-        carResource.setId(car.getId());
-        carResource.setSegment(car.getSegment());
-        carResource.setBrand(car.getBrand());
-        carResource.setModel(car.getModel());
-        carResource.setGeneration(car.getGeneration());
-        carResource.setModification(car.getModification());
-
-        return carResource;
-    }
-
-    private static CarInfoResource from(CarInfo carInfo) {
-        CarInfoResource carInfoResource = new CarInfoResource();
-        carInfoResource.setId(carInfo.getId());
-        carInfoResource.setSegment(carInfo.getSegment());
-        carInfoResource.setBrand(carInfo.getBrand());
-        carInfoResource.setModel(carInfo.getModel());
-        carInfoResource.setGeneration(carInfo.getGeneration());
-        carInfoResource.setModification(carInfo.getModification());
-        carInfoResource.setYearRange(carInfo.getYearRange());
-        carInfoResource.setFuelType(carInfo.getFuelType());
-        carInfoResource.setEngineType(carInfo.getEngineType());
-        carInfoResource.setEngineDisplacement(carInfo.getEngineDisplacement());
-        carInfoResource.setHp(carInfo.getHp());
-        carInfoResource.setGearboxType(carInfo.getGearboxType());
-        carInfoResource.setWheelDriveType(carInfo.getWheelDriveType());
-        carInfoResource.setBodyLength(carInfo.getBodyLength());
-        carInfoResource.setBodyWidth(carInfo.getBodyWidth());
-        carInfoResource.setBodyHeight(carInfo.getBodyHeight());
-        carInfoResource.setBodyStyle(carInfo.getBodyStyle());
-        carInfoResource.setAcceleration(carInfo.getAcceleration());
-        carInfoResource.setMaxSpeed(carInfo.getMaxSpeed());
-
-        return carInfoResource;
-    }
-
-    private static CountryResource from(Country country) {
-        CountryResource countryResource = new CountryResource();
-        countryResource.setId(country.getId());
-        countryResource.setTitle(country.getTitle());
-        countryResource.setBrands(country.getBrands());
-
-        return countryResource;
+    public Response getMaxSpeed(@QueryParam("brand") String brand,
+                                @QueryParam("model") String model) {
+        final List<Integer> speedList = new ArrayList<>();
+        try {
+            validator.checkThatBothParamsAreNotPassedOrBothIsNotExist(brand, model);
+            if (brand != null) {
+                speedList.addAll(carInfoService.getMaxSpeedListByBrand(brand));
+            } else {
+                speedList.addAll(carInfoService.getMaxSpeedListByModel(model));
+            }
+            return speedList.isEmpty() ? Response.status(Response.Status.NOT_FOUND).build() :
+                    Response.status(Response.Status.OK).entity(carInfoService.getAverageSpeed(speedList)).build();
+        } catch (CustomException e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
     }
 
 }

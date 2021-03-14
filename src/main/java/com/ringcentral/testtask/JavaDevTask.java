@@ -1,8 +1,11 @@
 package com.ringcentral.testtask;
 
+import com.ringcentral.testtask.services.ApplicationBinder;
+import com.ringcentral.testtask.services.ImmediateFeature;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
+
 import java.io.IOException;
 import java.net.URI;
 
@@ -11,6 +14,8 @@ public class JavaDevTask {
 
     private static HttpServer startServer() {
         final ResourceConfig rc = new ResourceConfig().packages("com.ringcentral.testtask.controllers");
+        rc.register(new ApplicationBinder());
+        rc.register(ImmediateFeature.class);
         return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
     }
 

@@ -2,20 +2,20 @@ package com.ringcentral.testtask.services.external;
 
 import com.ringcentral.testtask.external.Car;
 import com.ringcentral.testtask.external.CarInfo;
+import com.ringcentral.testtask.external.Country;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jvnet.hk2.annotations.Service;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
-
-import com.ringcentral.testtask.external.Country;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import javax.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 
+@Service
 public class CarsAPIService {
     private static final Logger LOGGER = LogManager.getLogger(CarsAPIService.class);
 
